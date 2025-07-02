@@ -10,9 +10,15 @@ provider:
   region: us-west-1
 
 functions:
-  hello:
-    handler: handler.hello
+  greet:
+    handler: handler.greet
     events:
       - httpApi:
-          path: /
+          path: /greet
           method: get
+  anotherGreet:
+    handler: anotherGreet.anotherGreet
+    events:
+      - httpApi:
+          path: /greet
+          method: post        
