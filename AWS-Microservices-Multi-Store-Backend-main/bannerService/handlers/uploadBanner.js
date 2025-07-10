@@ -5,7 +5,7 @@ const {getSignedUrl} = require('@aws-sdk/s3-request-presigner');
 
 //Creating an  S3 client instance  with the specified AWS region
 
-const s3Client = new S3Client({region: "us-east-1"});
+const s3Client = new S3Client({region: "us-west-1"});
 
 //Lambda function to generate a pre-signed URl for S3 file  upload
 //the Url Allows clients  to securely upload a file to S3 bucket without exposting aws credentials

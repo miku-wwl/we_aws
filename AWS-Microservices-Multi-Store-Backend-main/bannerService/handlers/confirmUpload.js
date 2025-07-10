@@ -3,7 +3,7 @@ const {DynamoDBClient , PutItemCommand} = require('@aws-sdk/client-dynamodb');
 
 //Initialize Dynamo Client with the specified AWS region
 const dynamoDbClient  = new DynamoDBClient({
-    region:"us-east-1"
+    region:"us-west-1"
 });
 
 //lambda function to confirm file uplaod and store file metadata in dynamoDb
@@ -19,7 +19,7 @@ exports.confirmUpload = async (event) =>{
     const fileName = record.s3.object.key;
     //Construct the public Url  for  the uploaded  file
     const imageUrl = `https://${bucketName}.s3.amazonaws.com/${fileName}`;
-                     //https://banner-images-famous-macaulay-dev-123-new.s3.us-east-1.amazonaws.com/banner1.png
+                     //https://banner-images-famous-macaulay-dev-123-new.s3.us-west-1.amazonaws.com/banner1.png
 
     //Prepare the file metedata to upload in DynamoDB
     const putItemCommand = new PutItemCommand({

@@ -4,7 +4,7 @@ const {DynamoDBClient, ScanCommand} = require('@aws-sdk/client-dynamodb');
 
 //Initialize the DynamoDB Client with AWS Region
 
-const dynamoDbClient = new DynamoDBClient({region: 'us-east-1'});
+const dynamoDbClient = new DynamoDBClient({region: 'us-west-1'});
 
 //Lambda Function to retrieve all Banners from DynamoDb table
 
