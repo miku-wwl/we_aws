@@ -1,0 +1,66 @@
+org: weilai
+service: authService
+
+provider:
+  name: aws
+  runtime: nodejs22.x
+  region: "us-west-1" 
+  environment:
+    CLIENT_ID: df541kib05cjnvkutis3mo4l0 #${ssm:/CLIENT_ID}
+    REGION: "us-west-1"
+    USER_POOL_ID: 'us-west-1_NEOZWPh6Q'
+  iamRoleStatements:
+    - Effect: Allow 
+      Action: 
+        - dynamodb:PutItem 
+        - dynamodb:UpdateItem 
+      Resource: 
+        - !GetAtt UsersTable.Arn  # 动态获取 DynamoDB 表的 ARN    - Effect: Allow
+    - Effect: Allow 
+      Action:
+        - cognito-idp:AdminGetUser
+      Resource:
+        - arn:aws:cognito-idp:us-west-1:636081904347:userpool/us-west-1_NEOZWPh6Q
+
+resources:
+  Resources:
+    UsersTable:
+      Type: AWS::DynamoDB::Table # Defines a DynamoDB table resource
+      Properties:
+        TableName: Users # Name of the table where users will be stored
+        BillingMode: PAY_PER_REQUEST # Automatically scales read/write capacity based on usage
+        AttributeDefinitions:
+          - AttributeName: userId # The partition key (unique identifier for each user)
+            AttributeType: S # "S" means String data type
+        KeySchema:
+          - AttributeName: userId # Defines userId as the primary key
+            KeyType: HASH # HASH indicates it's the partition key  
+
+functions:
+  signUp:
+    handler: handlers/signUp.signUp
+    events:
+      - httpApi:
+          path: /signUp
+          method: post
+
+  confirmSignUp:
+    handler: handlers/confirmSignUp.confirmSignUp
+    events:
+      - httpApi:
+          path: /confirm-sign-up
+          method: post        
+
+  signIn:
+    handler: handlers/signIn.signIn
+    events:
+      - httpApi:
+          path: /sign-in
+          method: post 
+
+  signOut:
+    handler: handlers/signOut.signOut
+    events:
+      - httpApi:
+          path: /sign-out
+          method: post         

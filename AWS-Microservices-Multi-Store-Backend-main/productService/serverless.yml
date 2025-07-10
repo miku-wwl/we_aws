@@ -1,0 +1,94 @@
+# "org" ensures this Service is used with the correct Serverless Framework Access Key.
+org: macaulayfamous
+# "service" is the name of this project. This will also be added to your AWS resource names.
+service: productService
+
+provider:
+  name: aws
+  runtime: nodejs22.x
+  environment:
+    BUCKET_NAME: product-images-famous-macaulay-12340
+    DYNAMO_TABLE: Products
+    SNS_TOPIC_ARN: arn:aws:sns:us-east-1:051826707630:ProductCleanupTopic
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - s3:PutObject #needed to generate the pre-signed url for uploading the file
+      Resource: arn:aws:s3:::product-images-famous-macaulay-12340/*
+    - Effect: Allow
+      Action:
+        - dynamoDb:PutItem
+        - dynamoDb:UpdateItem #Added permission to update existing records
+        - dynamoDb:Scan #Added permission to Scan the table
+        - dynamoDb:DeleteItem #Added permission to Delete outdated records
+      Resource: arn:aws:dynamodb:us-east-1:051826707630:table/Products    
+    - Effect: Allow
+      Action:
+        - sns:Publish
+      Resource: arn:aws:sns:us-east-1:051826707630:ProductCleanupTopic  
+  
+  httpApi:
+    authorizers:
+      myCognitoAuth: #Custom name for Cognito Authorization(used in routes)
+        identitySource: $request.header.Authorization #Extract JWT token from Authorization
+        #header (used for validation)
+        issuerUrl: https://cognito-idp.us-east-1.amazonaws.com/us-east-1_DhdOziYPw
+        #Url of your Cognito user pool(Needed to  verify tokens).
+        audience:
+          - 6jsvvjn0ck176kqttd8rd45p6h
+          #Cognito App client ID(ensures tokens come from the right app).
+ 
+resources:
+  Resources:
+    ProductTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: Products
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH   
+    ProductImagesBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: product-images-famous-macaulay-12340
+    ProductCleanupTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: ProductCleanupTopic  
+    CategoryCleanupSubscription:
+      Type: AWS::SNS::Subscription
+      Properties:
+        TopicArn: arn:aws:sns:us-east-1:051826707630:ProductCleanupTopic
+        Protocol: email
+        Endpoint: macaulayfamous@gmail.com 
+functions:
+  getUploadUrl:
+    handler: handlers/getUploadUrl.getUploadUrl
+    events:
+      - httpApi:
+          path: /get-upload-url
+          method: post
+          authorizer:
+            name: myCognitoAuth
+  getApprovedProducts:
+    handler: handlers/getApprovedProducts.getApprovedProducts
+    events:
+      - httpApi:
+          path: /approve-products
+          method: get
+          
+  updateProductImage:
+    handler: handlers/updateProductImage.updateProductImage
+    events:
+      - s3:
+          bucket: product-images-famous-macaulay-12340
+          event: s3:ObjectCreated:Put #Trigger event when a new object is uplaod
+          existing: true #ensures the function works with  an existing bucket         
+  cleanupProducts:
+    handler: handlers/cleanupProducts.cleanupProducts
+    events:
+      - schedule: rate(2 minutes) #Runs every 2 minutes       
