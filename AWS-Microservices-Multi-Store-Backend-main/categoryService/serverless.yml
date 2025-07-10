@@ -1,40 +1,53 @@
-# "org" ensures this Service is used with the correct Serverless Framework Access Key.
-org: macaulayfamous
-# "service" is the name of this project. This will also be added to your AWS resource names.
+org: weilai
 service: categoryService
 
 provider:
   name: aws
   runtime: nodejs22.x
+  region: "us-west-1"
   environment:
-    BUCKET_NAME: category-images-famous-macaulay-123-dev
-    DYNAMO_TABLE: Categories
-    SNS_TOPIC_ARN: arn:aws:sns:us-east-1:051826707630:CategoryCleanupTopic
+    # 动态引用 S3 桶名（替代硬编码）
+    BUCKET_NAME: !Ref CategoryImagesBucket  
+    # 动态引用 DynamoDB 表名（替代硬编码）
+    DYNAMO_TABLE: !Ref CategoryTable        
+    # 动态引用 SNS Topic 的 ARN（替代硬编码）
+    SNS_TOPIC_ARN: !GetAtt CategoryCleanupTopic.TopicArn  
   iamRoleStatements:
     - Effect: Allow
-      Action:
-        - s3:PutObject #needed to generate the pre-signed url for uploading the file
-      Resource: arn:aws:s3:::category-images-famous-macaulay-123-dev/*
+      Action: ["s3:PutObject"]
+      # 动态拼接 S3 资源 ARN（桶名 + /*）
+      Resource: !Join ["", ["arn:aws:s3:::", !Ref CategoryImagesBucket, "/*"]]  
     - Effect: Allow
-      Action:
-        - dynamoDb:PutItem
-        - dynamoDb:UpdateItem #Added permission to update existing records
-        - dynamoDb:Scan #Added permission to Scan the table
-        - dynamoDb:DeleteItem #Added permission to Delete outdated records
-      Resource: arn:aws:dynamodb:us-east-1:051826707630:table/Categories  
+      Action: ["dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:Scan", "dynamodb:DeleteItem"]
+      # 动态引用 DynamoDB 表的 ARN
+      Resource: !GetAtt CategoryTable.Arn  
     - Effect: Allow
-      Action:
-        - sns:Publish
-      Resource: arn:aws:sns:us-east-1:051826707630:CategoryCleanupTopic           
-   
-  
+      Action: ["sns:Publish"]
+      # 动态引用 SNS Topic 的 ARN
+      Resource: !GetAtt CategoryCleanupTopic.TopicArn           
+
 resources:
   Resources:
+    # S3 桶定义
     CategoryImagesBucket:
       Type: AWS::S3::Bucket
       Properties:
-        BucketName: category-images-famous-macaulay-123-dev
+        BucketName: category-images-weilai-123-dev
 
+# 可修改Bucket policy:        
+# {
+#     "Version": "2012-10-17",
+#     "Statement": [
+#         {
+#             "Effect": "Allow",
+#             "Principal": "*",
+#             "Action": "s3:GetObject",
+#             "Resource": "arn:aws:s3:::category-images-weilai-dev-123-new/*"
+#         }
+#     ]
+# }
+
+    # DynamoDB 表定义
     CategoryTable:
       Type: AWS::DynamoDB::Table
       Properties:
@@ -46,16 +59,21 @@ resources:
         KeySchema:
           - AttributeName: fileName
             KeyType: HASH  
+
+    # SNS Topic 定义
     CategoryCleanupTopic:
       Type: AWS::SNS::Topic
       Properties:
         TopicName: CategoryCleanupTopic  
+
+    # SNS 订阅定义（动态引用 Topic ARN）
     CategoryCleanupSubscription:
       Type: AWS::SNS::Subscription
       Properties:
-        TopicArn: arn:aws:sns:us-east-1:051826707630:CategoryCleanupTopic
+        TopicArn: !GetAtt CategoryCleanupTopic.TopicArn  # 动态引用 Topic ARN
         Protocol: email
-        Endpoint: macaulayfamous@gmail.com
+        Endpoint: 569144003@qq.com
+
 functions:
   getUploadUrl:
     handler: handlers/getUploadUrl.getUploadUrl
@@ -63,21 +81,24 @@ functions:
       - httpApi:
           path: /upload-url
           method: post
+
   getAllCategories:
     handler: handlers/getAllCategories.getAllCategories
     events:
       - httpApi:
           path: /categories
           method: get        
-          
+
+  # S3 事件触发（动态引用 S3 桶）
   updateCategoryImage:
     handler: handlers/updateCategoryImage.updateCategoryImage
     events:
       - s3:
-          bucket: category-images-famous-macaulay-123-dev
-          event: s3:ObjectCreated:Put #Trigger event when a new object is uplaod
-          existing: true #ensures the function works with  an existing bucket
+          bucket: !Ref CategoryImagesBucket  # 动态引用 S3 桶
+          event: s3:ObjectCreated:Put 
+          existing: true 
+
   cleanupCategories:
     handler: handlers/cleanupCategories.cleanupCategories
     events:
-      - schedule: rate(2 minutes) #Runs every 2 minutes
+      - schedule: rate(2 minutes) 

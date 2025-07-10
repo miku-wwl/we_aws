@@ -4,8 +4,8 @@ const {DynamoDBClient, ScanCommand, DeleteItemCommand} = require('@aws-sdk/clien
 const {SNSClient, PublishCommand} = require('@aws-sdk/client-sns');
 //Initialize the DynamoDb client with AWS Region
 
-const dynamoDbClient  = new DynamoDBClient({region:"us-east-1"});
-const snsClient = new SNSClient({region:'us-east-1'});
+const dynamoDbClient  = new DynamoDBClient({region:"us-west-1"});
+const snsClient = new SNSClient({region:'us-west-1'});
 //Define the clean up function to remove outdated categories 
 
 exports.cleanupCategories = async () =>{

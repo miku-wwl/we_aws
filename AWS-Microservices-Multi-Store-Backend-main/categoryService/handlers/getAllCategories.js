@@ -4,7 +4,7 @@ const {DynamoDBClient, ScanCommand} = require('@aws-sdk/client-dynamodb');
 
 //Initialize DynamoDb client with AWS Region
 
-const dynamoDbClient = new DynamoDBClient({region:"us-east-1"});
+const dynamoDbClient = new DynamoDBClient({region:"us-west-1"});
 
 //Lambda function to get all categories from Dynamodb
 
