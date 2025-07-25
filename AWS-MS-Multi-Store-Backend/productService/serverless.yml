@@ -1,0 +1,103 @@
+org: weilai
+service: productService
+
+provider:
+  name: aws
+  runtime: nodejs22.x
+  region: "us-west-1"
+  environment:
+    # 动态引用 S3 桶名（替代硬编码）
+    BUCKET_NAME: !Ref ProductImagesBucket  
+    # 动态引用 DynamoDB 表名（替代硬编码）
+    DYNAMO_TABLE: !Ref ProductTable        
+    # 动态引用 SNS 主题 ARN（替代硬编码）
+    SNS_TOPIC_ARN: !GetAtt ProductCleanupTopic.TopicArn  
+  iamRoleStatements:
+    - Effect: Allow
+      Action: ["s3:PutObject"]
+      # 动态拼接 S3 资源 ARN（桶名 + /*）
+      Resource: !Join ["", ["arn:aws:s3:::", !Ref ProductImagesBucket, "/*"]]  
+    - Effect: Allow
+      Action: ["dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:Scan", "dynamodb:DeleteItem"]
+      # 动态引用 DynamoDB 表 ARN（替代硬编码）
+      Resource: !GetAtt ProductTable.Arn  
+    - Effect: Allow
+      Action: ["sns:Publish"]
+      # 动态引用 SNS 主题 ARN（替代硬编码）
+      Resource: !GetAtt ProductCleanupTopic.TopicArn  
+
+  httpApi:
+    authorizers:
+      myCognitoAuth:
+        identitySource: $request.header.Authorization
+        issuerUrl: https://cognito-idp.us-west-1.amazonaws.com/us-west-1_NEOZWPh6Q # Cognito 用户池固定 ID，无需修改
+        audience:
+          - df541kib05cjnvkutis3mo4l0  # Cognito 客户端 ID，固定值
+
+resources:
+  Resources:
+    # DynamoDB 表定义
+    ProductTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: Products
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH   
+
+    # S3 桶定义
+    ProductImagesBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: product-images-weilai-12340  # 桶名若需固定可保留，或用动态命名（如加 stage 后缀）
+
+    # SNS 主题定义
+    ProductCleanupTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: ProductCleanupTopic  
+
+    # SNS 订阅（修正名称，与主题匹配）
+    ProductCleanupSubscription:  # 原名称 "CategoryCleanupSubscription" 有误，改为与产品主题一致
+      Type: AWS::SNS::Subscription
+      Properties:
+        # 动态引用 SNS 主题 ARN（替代硬编码）
+        TopicArn: !GetAtt ProductCleanupTopic.TopicArn  
+        Protocol: email
+        Endpoint: 569144003@qq.com  
+
+
+functions:
+  getUploadUrl:
+    handler: handlers/getUploadUrl.getUploadUrl
+    events:
+      - httpApi:
+          path: /get-upload-url
+          method: post
+          authorizer:
+            name: myCognitoAuth
+
+  getApprovedProducts:
+    handler: handlers/getApprovedProducts.getApprovedProducts
+    events:
+      - httpApi:
+          path: /approve-products
+          method: get
+
+  # S3 事件触发（动态引用桶名）
+  updateProductImage:
+    handler: handlers/updateProductImage.updateProductImage
+    events:
+      - s3:
+          bucket: !Ref ProductImagesBucket  # 动态引用 S3 桶（替代硬编码）
+          event: s3:ObjectCreated:Put
+          existing: true  # 若桶已存在，保持此配置
+
+  cleanupProducts:
+    handler: handlers/cleanupProducts.cleanupProducts
+    events:
+      - schedule: rate(2 minutes)

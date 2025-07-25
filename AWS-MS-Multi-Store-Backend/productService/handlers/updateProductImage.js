@@ -5,7 +5,7 @@ const {DynamoDBClient, UpdateItemCommand, ScanCommand} = require('@aws-sdk/clien
 
 //Initilize the dynamoDB client with the specified AWS Region
 
-const dynamoDbClient = new DynamoDBClient({region:"us-east-1"});
+const dynamoDbClient = new DynamoDBClient({region:"us-west-1"});
 
 exports.updateProductImage = async (event)=>{
     try {
